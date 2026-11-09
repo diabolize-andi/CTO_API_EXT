@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flight Push integration | Click &amp; Take off</title>
+  <link rel="icon" type="image/png" href="../favicon-32x32.png">
+  <style>
+    :root { color-scheme: light; font-family: Arial, sans-serif; color: #1d2c48; background: #f4f6fb; }
+    body { margin: 0; line-height: 1.6; }
+    header { background: #22398d; color: white; padding: 30px max(24px, calc((100vw - 1060px) / 2)); }
+    header a { color: white; } h1 { margin: 12px 0 2px; font-size: 2rem; }
+    main { max-width: 1060px; margin: 0 auto; padding: 24px; }
+    section { background: white; border: 1px solid #e1e7f1; border-radius: 12px; padding: 22px; margin-bottom: 18px; }
+    h2 { color: #22398d; margin-top: 0; } h3 { margin-bottom: 6px; }
+    code { font-family: Consolas, monospace; font-size: .93em; }
+    pre { background: #17243e; color: #f4f7ff; border-radius: 8px; padding: 16px; overflow-x: auto; }
+    .example-selector { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .example-selector select { padding: 7px 10px; border: 1px solid #c9d3e4; border-radius: 6px; font: inherit; color: inherit; background: white; }
+    table { width: 100%; border-collapse: collapse; } th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e5eaf2; vertical-align: top; }
+    .table-wrap { overflow-x: auto; } .note { background: #eef5ff; border-left: 4px solid #2065d1; padding: 12px; }
+    a { color: #22398d; } header a { color: #fff; }
+    @media (max-width: 600px) { main { padding: 14px; } section { padding: 16px; } h1 { font-size: 1.6rem; } }
+  </style>
+</head>
+<body>
+<header>
+  <a href="../">&larr; API documentation</a>
+  <h1>Flight Push integration</h1>
+  <div>Receiving flights from Click &amp; Take off</div>
+</header>
+<main>
+  <section>
+    <h2>Overview</h2>
+    <p>Click &amp; Take off (CTO) can send an eligible club flight to a URL supplied by the receiving platform after the flight is created. The receiver provides the HTTPS endpoint, an optional bearer token, and the desired full-flight or segment mode. The optional position export is configured separately.</p>
+  </section>
+  <section>
+    <h2>Push request</h2>
+    <pre><code>PUT https://receiver.example.com/flights
+Content-Type: application/json
+Authorization: Bearer &lt;token&gt;  (only when configured)</code></pre>
+    <p>The JSON body is an object containing a <code>data</code> array. In full-flight mode it contains the exported flight; in segment mode it contains its exported segments. One request can therefore contain multiple segments belonging to the same flight.</p>
+    <div class="example-selector">
+      <label for="position-example">Example:</label>
+      <select id="position-example">
+        <option value="without">Without positions</option>
+        <option value="with">With positions</option>
+      </select>
+    </div>
+    <pre id="example-without"><code>{
+  "data": [
+    {
+      "volId": 12345,
+      "deviceId": 42,
+      "clubName": "Example club",
+      "deviceName": "F-EXAM",
+      "startTime": "2026-10-20T10:00:00Z",
+      "endTime": "2026-10-20T11:00:00Z",
+      "startTimeFlight": "2026-10-20T10:05:00Z",
+      "endTimeFlight": "2026-10-20T10:55:00Z",
+      "icaoAeroStart": "LFFE",
+      "icaoAeroEnd": "LFFE",
+      "landing": 1
+    }
+  ]
+}</code></pre>
+    <pre id="example-with" hidden><code>{
+  "data": [
+    {
+      "volId": 12345,
+      "deviceId": 42,
+      "clubName": "Example club",
+      "deviceName": "F-EXAM",
+      "startTime": "2026-10-20T10:00:00Z",
+      "endTime": "2026-10-20T11:00:00Z",
+      "startTimeFlight": "2026-10-20T10:05:00Z",
+      "endTimeFlight": "2026-10-20T10:55:00Z",
+      "icaoAeroStart": "LFFE",
+      "icaoAeroEnd": "LFFE",
+      "landing": 1,
+      "latitude": [49.077, 49.080],
+      "longitude": [2.356, 2.360],
+      "altitude": [120, 180],
+      "time": ["2026-10-20T10:05:00Z", "2026-10-20T10:06:00Z"]
+    }
+  ]
+}</code></pre>
+    <noscript><p>Enable JavaScript to switch between the examples.</p></noscript>
+    <p>The example is illustrative. Optional fields that have no value can be omitted from the JSON; do not assume every flight has an aerodrome, analysis, pilot or instructor.</p>
+    <div class="note"><strong>Time zone:</strong> dates are sent in UTC, in ISO 8601 format with the <code>Z</code> suffix.</div>
+  </section>
+  <section>
+    <h2>Fields</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Field</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>volId</code>, <code>deviceId</code></td><td>Internal identifiers of the flight and device.</td></tr>
+        <tr><td><code>clubName</code>, <code>deviceName</code></td><td>Club and aircraft names.</td></tr>
+        <tr><td><code>branchNumber</code></td><td>Segment number, in segment mode.</td></tr>
+        <tr><td><code>startTime</code>, <code>endTime</code></td><td>Exported start and end dates. Their selection can depend on the device's external time-export configuration.</td></tr>
+        <tr><td><code>startTimeFlight</code>, <code>endTimeFlight</code></td><td>Alternative start and end dates when available; also affected by the export mode.</td></tr>
+        <tr><td><code>icaoAeroStart</code>, <code>icaoAeroEnd</code>, <code>icao</code></td><td>Departure, arrival and intermediate aerodrome codes where available. <code>icao</code> is specific to full-flight mode.</td></tr>
+        <tr><td><code>hourMeterStart</code>, <code>hourMeterEnd</code>, <code>hourMeterStartFlight</code>, <code>hourMeterEndFlight</code></td><td>Time-related values when available. In segment mode these are timestamps in Unix milliseconds, not conventional hour-meter readings; values can be affected by the export mode.</td></tr>
+        <tr><td><code>pilotEmail</code>, <code>instructorEmail</code></td><td>Assignment emails when known; they may be absent from a newly created flight.</td></tr>
+        <tr><td><code>landing</code></td><td>Number of landings when analysis is available; this is a number, not a boolean.</td></tr>
+        <tr><td><code>latitude</code>, <code>longitude</code>, <code>altitude</code>, <code>time</code></td><td>Optional parallel position arrays when position export is enabled. The sender samples the first, last and every twentieth position, subject to validity checks.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+  <section>
+    <h2>Receiver response and retries</h2>
+    <p>Return <strong>HTTP 200 or 201</strong> to acknowledge receipt. Other status codes, including 204, 404 and 409, are treated as failed deliveries.</p>
+    <p>Failed flights are eligible for retry by a task scheduled every 10 minutes, while their failure counter is below five. The receiver should handle repeat deliveries safely, including a timeout after it has already processed a request. The sender uses connection and response timeouts of five seconds.</p>
+  </section>
+  <section>
+    <h2>Assigning pilots and instructors</h2>
+    <p>Returning email addresses in the Push response does not create an assignment. To send an assignment back to CTO, use the <a href="../flight/">flight API</a> or the <a href="../flightSegment/">segment API</a> with the appropriate token and the dates expected by those routes.</p>
+  </section>
+  <section>
+    <h2>Alternative: notification-only mode</h2>
+    <p>When configured without flight data, CTO sends a GET to the configured URL instead of the JSON PUT. It adds <code>planeCode</code> and <code>api=clickandtakeoff</code> if the URL does not already contain <code>planeCode=</code>. The same optional bearer authorization and HTTP 200/201 success rules apply. This request has no flight JSON body.</p>
+  </section>
+  <p>Technical support: <a href="mailto:support@clickandtakeoff.com">support@clickandtakeoff.com</a></p>
+</main>
+<script>
+  document.getElementById('position-example').addEventListener('change', function () {
+    document.getElementById('example-without').hidden = this.value !== 'without';
+    document.getElementById('example-with').hidden = this.value !== 'with';
+  });
+</script>
+</body>
+</html>

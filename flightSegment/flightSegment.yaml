@@ -13,7 +13,12 @@ paths:
       summary: Fetch a list of flights segments
       tags:
         - "Flight Segment"
-      description: It returns a list of flights segments the user has access to
+      description: |
+        Returns flight segments for the requested device and club. All parameters are sent in the URL query string.
+        Assignment filters accept `true` / `1` and `false` / `0` (case-insensitive for words).
+        If both are false or both are true, all segments are returned. If exactly one is true,
+        only segments with that assignment status are returned. Assignment status is determined
+        for the underlying flight. A GET request needs no form body.
       parameters:
         - name: device
           in: query
@@ -43,16 +48,18 @@ paths:
             format: date-time
         - name: nonAssigned
           in: query
-          description: "false"
+          description: "Return only unassigned segments when true and assigned is false. Defaults to false."
           required: false
           schema:
-            type: boolean
+            type: string
+            default: "false"
         - name: assigned
           in: query
-          description: "false"
+          description: "Return only assigned segments when true and nonAssigned is false. Defaults to false."
           required: false
           schema:
-            type: boolean
+            type: string
+            default: "false"
       responses:
         "200":
           description: OK
@@ -70,9 +77,16 @@ paths:
           description: CTO server is not available. Please try later
         "404":
           description: Club not found / Device not found
+        "429":
+          description: Too many requests
 
     put:
       summary: Flight Segment Assignment
+      description: |
+        Send the parameters in the application/x-www-form-urlencoded request body.
+        Identify the pilot by pilotId or pilotEmail; an instructor is optional. Use the exact
+        segment start and end timestamps returned by the API. volId and branchNumber are not
+        assignment parameters. Assignment also depends on the segment being matched to a flight.
       tags:
         - "Flight Segment"
       requestBody:
@@ -81,6 +95,7 @@ paths:
           application/x-www-form-urlencoded:
             schema:
               type: object
+              required: [device, club, from, to]
               properties:
                 device:
                   type: string
@@ -115,6 +130,8 @@ paths:
           description: Unauthorized
         "400":
           description: ERROR / Pilot not indicated / 
+        "403":
+          description: No segment matching the supplied dates was found, or its flight could not be matched
         "402":
           description: CTO server is not available. Please try later
         "404":
@@ -129,53 +146,103 @@ components:
     FlightSegmentCtoItems:
       type: object
       properties:
+        volId:
+          type: integer
+          format: int64
+          description: Internal flight identifier; not accepted as an assignment parameter
+        deviceId:
+          type: integer
+          format: int64
+          description: Internal device identifier
+        branchNumber:
+          type: integer
+          description: Segment number; not accepted as an assignment parameter
         clubName:
           type: string
+          nullable: true
         deviceName:
           type: string
         startTime:
-          description: "Engine start time, in ISO 8601 format. eg. `1963-11-22T18:30:00Z`"
+          description: "Segment start timestamp, subject to the device's external time export mode"
           type: string
           format: date-time
         endTime:
-          description: "Engine end time, in ISO 8601 format. eg. `1963-11-22T18:30:00Z`"
+          description: "Segment end timestamp, subject to the device's external time export mode"
           type: string
           format: date-time
         startTimeFlight:
-          description: "Movement start time, in ISO 8601 format. eg. `1963-11-22T18:30:00Z`"
+          description: "Alternative segment start timestamp; may be absent and depends on the device's external time export mode"
           type: string
           format: date-time
+          nullable: true
         endTimeFlight:
-          description: "Movement end time, in ISO 8601 format. eg. `1963-11-22T18:30:00Z`"
+          description: "Alternative segment end timestamp; may be absent and depends on the device's external time export mode"
           type: string
           format: date-time
+          nullable: true
         icaoAeroStart:
           type: string
+          nullable: true
           description: "Starting aerodrome"
         icaoAeroEnd:
           type: string
+          nullable: true
           description: "Arrival aerodrome"
         hourMeterStart:
           type: integer
-          description: "Engine start hour meter"
+          format: int64
+          nullable: true
+          description: "Segment start timestamp in Unix milliseconds; subject to the device's external time export mode"
         hourMeterStartFlight:
           type: integer
-          description: "Movement start hour meter"
+          format: int64
+          nullable: true
+          description: "Alternative segment start timestamp in Unix milliseconds when available"
         hourMeterEnd:
           type: integer
-          description: "Engine stop hour meter"
+          format: int64
+          nullable: true
+          description: "Segment end timestamp in Unix milliseconds; subject to the device's external time export mode"
         hourMeterEndFlight:
           type: integer
-          description: "Movement stop hour meter"
+          format: int64
+          nullable: true
+          description: "Alternative segment end timestamp in Unix milliseconds when available"
         pilotEmail:
           type: string
-          description: "Pilot email adress, empty if flight has not been assigned"
+          nullable: true
+          description: "Pilot email address, null when unavailable or not assigned"
         instructorEmail:
           type: string
-          description: "instructor email adress, empty if flight has not been assigned or has no instructor"
+          nullable: true
+          description: "Instructor email address, null when unavailable or not assigned"
         landing:
           type: integer
-          description: "Landing total number, 0 if none"
+          nullable: true
+          description: "Number of landings when available; may be null"
+        latitude:
+          type: array
+          nullable: true
+          items:
+            type: number
+            format: double
+        longitude:
+          type: array
+          nullable: true
+          items:
+            type: number
+            format: double
+        altitude:
+          type: array
+          nullable: true
+          items:
+            type: integer
+        time:
+          type: array
+          nullable: true
+          items:
+            type: string
+            format: date-time
 
   securitySchemes:
     bearerAuth:
